@@ -370,11 +370,19 @@ static void GhosttyAdapter_HandleInput(void *state, int ptyFd)
 		}
 
 		GhosttyKeyAction action = released ? GHOSTTY_KEY_ACTION_RELEASE : (pressed ? GHOSTTY_KEY_ACTION_PRESS : GHOSTTY_KEY_ACTION_REPEAT);
+		GhosttyMods mods = GhosttyAdapter_GetMods();
+		GhosttyMods consumed = 0;
+		uint32_t unshiftedCodepoint = GhosttyAdapter_UnshiftedCodepoint(raylibKey);
+		if (unshiftedCodepoint != 0 && (mods & GHOSTTY_MODS_SHIFT))
+		{
+			consumed |= GHOSTTY_MODS_SHIFT;
+		}
+
 		ghostty_key_event_set_key(ghostty->keyEvent, key);
 		ghostty_key_event_set_action(ghostty->keyEvent, action);
-		ghostty_key_event_set_mods(ghostty->keyEvent, GhosttyAdapter_GetMods());
-		ghostty_key_event_set_unshifted_codepoint(ghostty->keyEvent, GhosttyAdapter_UnshiftedCodepoint(raylibKey));
-		ghostty_key_event_set_consumed_mods(ghostty->keyEvent, 0);
+		ghostty_key_event_set_mods(ghostty->keyEvent, mods);
+		ghostty_key_event_set_unshifted_codepoint(ghostty->keyEvent, unshiftedCodepoint);
+		ghostty_key_event_set_consumed_mods(ghostty->keyEvent, consumed);
 		ghostty_key_event_set_utf8(ghostty->keyEvent, utf8Length > 0 && !released ? utf8 : NULL, utf8Length > 0 && !released ? utf8Length : 0);
 
 		char buffer[128];
