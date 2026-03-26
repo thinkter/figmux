@@ -1,4 +1,5 @@
 CompileFlags:
-  CompilationDatabase: ./build
+  CompilationDatabase: .
   Add:
+    - -Ibuild/external/ghostty-src/include
     - -Ibuild/external/raylib-master/src

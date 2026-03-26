@@ -8,7 +8,7 @@
 static const float kPaneMinWidth = 240.0f;
 static const float kPaneMinHeight = 160.0f;
 static const float kPaneDefaultWidth = 720.0f;
-static const float kPaneDefaultHeight = 440.0f;
+static const float kPaneDefaultHeight = 720.0f;
 static const float kPaneTitlebarHeight = 34.0f;
 static const float kPanePadding = 14.0f;
 static const float kPaneCharacterWidth = 9.0f;

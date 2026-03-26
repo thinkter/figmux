@@ -407,3 +407,4 @@ Makefile
 *.swo
 *.swn
 /build/compile_commands.json
+scripts/

@@ -1,0 +1,65 @@
+{
+  "runtime": {
+    "version": "Lua 5.4"
+  },
+  "diagnostics": {
+    "globals": [
+      "_ACTION",
+      "newoption",
+      "workspace",
+      "location",
+      "configurations",
+      "platforms",
+      "defaultplatform",
+      "filter",
+      "defines",
+      "symbols",
+      "optimize",
+      "linktimeoptimization",
+      "architecture",
+      "targetdir",
+      "startproject",
+      "project",
+      "kind",
+      "buildoptions",
+      "entrypoint",
+      "debugdir",
+      "vpaths",
+      "files",
+      "includedirs",
+      "libdirs",
+      "links",
+      "cdialect",
+      "cppdialect",
+      "flags",
+      "platform_defines",
+      "dependson",
+      "characterset",
+      "postbuildcommands",
+      "disablewarnings",
+      "language",
+      "prebuildcommands",
+      "removefiles",
+      "compileas",
+      "downloadRaylib",
+      "raylib_dir",
+      "ghostty_commit",
+      "ghostty_dir",
+      "ghostty_build_dir",
+      "ghostty_include_dir",
+      "ghostty_lib_dir",
+      "workspaceName",
+      "baseName",
+      "path",
+      "os",
+      "http",
+      "zip"
+    ]
+  },
+  "workspace": {
+    "ignoreDir": [
+      "external",
+      "build_files"
+    ]
+  }
+}
