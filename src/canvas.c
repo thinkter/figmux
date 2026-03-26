@@ -6,8 +6,6 @@ static const Color kBackgroundColor = { 18, 18, 24, 255 };
 static const Color kGridColor = { 46, 46, 58, 255 };
 static const Color kXAxisColor = { 70, 120, 220, 255 };
 static const Color kYAxisColor = { 220, 90, 90, 255 };
-static const Color kPreviewFillColor = { 255, 255, 255, 40 };
-static const Color kPreviewOutlineColor = { 255, 255, 255, 190 };
 static const Color kOverlayColor = { 0, 0, 0, 140 };
 
 static const int kGridExtent = 4000;
@@ -30,8 +28,9 @@ static void Canvas_HandlePan(Canvas *canvas)
 {
 	bool isPanningWithLeftMouse = Canvas_IsAltDown() && IsMouseButtonDown(MOUSE_BUTTON_LEFT);
 	bool isPanningWithMiddleMouse = IsMouseButtonDown(MOUSE_BUTTON_MIDDLE);
+	canvas->isPanning = isPanningWithLeftMouse || isPanningWithMiddleMouse;
 
-	if (!isPanningWithLeftMouse && !isPanningWithMiddleMouse)
+	if (!canvas->isPanning)
 	{
 		return;
 	}
@@ -58,28 +57,6 @@ static void Canvas_HandleZoom(Canvas *canvas)
 	canvas->camera.target = Vector2Add(canvas->camera.target, zoomOffset);
 }
 
-static void Canvas_HandleSquarePlacement(Canvas *canvas)
-{
-	if (Canvas_IsAltDown() || !IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-	{
-		return;
-	}
-
-	if (canvas->squareCount >= MAX_DEBUG_SQUARES)
-	{
-		return;
-	}
-
-	canvas->squares[canvas->squareCount++] = (DebugSquare) {
-		.position = {
-			canvas->hoverWorldPosition.x - (DEBUG_SQUARE_SIZE * 0.5f),
-			canvas->hoverWorldPosition.y - (DEBUG_SQUARE_SIZE * 0.5f)
-		},
-		.size = DEBUG_SQUARE_SIZE,
-		.color = ORANGE
-	};
-}
-
 static void Canvas_DrawGrid(void)
 {
 	for (int x = -kGridExtent; x <= kGridExtent; x += kGridStep)
@@ -95,33 +72,6 @@ static void Canvas_DrawGrid(void)
 	}
 }
 
-static void Canvas_DrawPlacedSquares(const Canvas *canvas)
-{
-	for (int i = 0; i < canvas->squareCount; i++)
-	{
-		const DebugSquare *square = &canvas->squares[i];
-		DrawRectangleV(square->position, (Vector2){ square->size, square->size }, square->color);
-		DrawRectangleLinesEx(
-			(Rectangle){ square->position.x, square->position.y, square->size, square->size },
-			2.0f / canvas->camera.zoom,
-			RAYWHITE
-		);
-	}
-}
-
-static void Canvas_DrawHoverPreview(const Canvas *canvas)
-{
-	Rectangle preview = {
-		canvas->hoverWorldPosition.x - (DEBUG_SQUARE_SIZE * 0.5f),
-		canvas->hoverWorldPosition.y - (DEBUG_SQUARE_SIZE * 0.5f),
-		DEBUG_SQUARE_SIZE,
-		DEBUG_SQUARE_SIZE
-	};
-
-	DrawRectangleRec(preview, kPreviewFillColor);
-	DrawRectangleLinesEx(preview, 2.0f / canvas->camera.zoom, kPreviewOutlineColor);
-}
-
 void Canvas_Init(Canvas *canvas)
 {
 	canvas->camera = (Camera2D){
@@ -130,8 +80,8 @@ void Canvas_Init(Canvas *canvas)
 		.rotation = 0.0f,
 		.zoom = 1.0f
 	};
-	canvas->squareCount = 0;
-	canvas->hoverWorldPosition = (Vector2){ 0.0f, 0.0f };
+	canvas->isPanning = false;
+	PaneManager_Init(&canvas->paneManager);
 
 	Canvas_UpdateOffset(canvas);
 }
@@ -142,8 +92,7 @@ void Canvas_Update(Canvas *canvas)
 	Canvas_HandlePan(canvas);
 	Canvas_HandleZoom(canvas);
 
-	canvas->hoverWorldPosition = GetScreenToWorld2D(GetMousePosition(), canvas->camera);
-	Canvas_HandleSquarePlacement(canvas);
+	PaneManager_Update(&canvas->paneManager, canvas->camera, canvas->isPanning);
 }
 
 void Canvas_Draw(const Canvas *canvas)
@@ -152,15 +101,14 @@ void Canvas_Draw(const Canvas *canvas)
 
 	BeginMode2D(canvas->camera);
 	Canvas_DrawGrid();
-	Canvas_DrawPlacedSquares(canvas);
-	Canvas_DrawHoverPreview(canvas);
+	PaneManager_Draw(&canvas->paneManager, canvas->camera);
 	EndMode2D();
 }
 
 void Canvas_DrawOverlay(const Canvas *canvas)
 {
-	DrawRectangle(16, 16, 400, 96, kOverlayColor);
+	DrawRectangle(16, 16, 430, 96, kOverlayColor);
 	DrawText("Middle mouse or Alt+Left: drag canvas", 32, 28, 20, RAYWHITE);
 	DrawText("Mouse wheel: zoom to cursor", 32, 54, 20, RAYWHITE);
-	DrawText(TextFormat("Left click: place square | Count: %d", canvas->squareCount), 32, 80, 20, RAYWHITE);
+	DrawText(TextFormat("Press N: new pane | Pane count: %d", PaneManager_GetPaneCount(&canvas->paneManager)), 32, 80, 20, RAYWHITE);
 }

@@ -90,6 +90,6 @@ void PerformanceHud_Draw(const PerformanceHud *hud, const Canvas *canvas)
 	DrawText(TextFormat("RSS: %.2f MB", (double)hud->residentMemoryBytes / (double)kBytesPerMegabyte), x + kHudPadding, y + kHudPadding + (5 * kHudLineHeight), kHudFontSize, kHudLabelColor);
 	DrawText(TextFormat("Resolution: %d x %d", GetScreenWidth(), GetScreenHeight()), x + kHudPadding, y + kHudPadding + (6 * kHudLineHeight), kHudFontSize, kHudLabelColor);
 	DrawText(TextFormat("Canvas zoom: %.2fx", canvas->camera.zoom), x + kHudPadding, y + kHudPadding + (7 * kHudLineHeight), kHudFontSize, kHudLabelColor);
-	DrawText(TextFormat("Squares: %d", canvas->squareCount), x + kHudPadding, y + kHudPadding + (8 * kHudLineHeight), kHudFontSize, kHudLabelColor);
+	DrawText(TextFormat("Panes: %d", PaneManager_GetPaneCount(&canvas->paneManager)), x + kHudPadding, y + kHudPadding + (8 * kHudLineHeight), kHudFontSize, kHudLabelColor);
 	DrawText("Present: VSync", x + kHudPadding, y + kHudPadding + (9 * kHudLineHeight), kHudFontSize, kHudLabelColor);
 }

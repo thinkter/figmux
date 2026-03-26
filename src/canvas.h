@@ -1,22 +1,16 @@
 #ifndef CANVAS_H
 #define CANVAS_H
 
+#include <stdbool.h>
+
 #include "raylib.h"
 
-#define MAX_DEBUG_SQUARES 1024
-#define DEBUG_SQUARE_SIZE 48.0f
-
-typedef struct DebugSquare {
-	Vector2 position;
-	float size;
-	Color color;
-} DebugSquare;
+#include "pane_manager.h"
 
 typedef struct Canvas {
 	Camera2D camera;
-	DebugSquare squares[MAX_DEBUG_SQUARES];
-	int squareCount;
-	Vector2 hoverWorldPosition;
+	bool isPanning;
+	PaneManager paneManager;
 } Canvas;
 
 void Canvas_Init(Canvas *canvas);
