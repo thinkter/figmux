@@ -23,6 +23,7 @@ int main(void)
 		EndDrawing();
 	}
 
+	App_Shutdown(&app);
 	CloseWindow();
 	return 0;
 }

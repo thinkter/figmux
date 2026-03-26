@@ -6,6 +6,11 @@ void App_Init(App *app)
 	PerformanceHud_Init(&app->performanceHud);
 }
 
+void App_Shutdown(App *app)
+{
+	Canvas_Shutdown(&app->canvas);
+}
+
 void App_Update(App *app)
 {
 	Canvas_Update(&app->canvas);

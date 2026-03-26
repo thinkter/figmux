@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "raylib.h"
+#include "terminal_session.h"
 
 #define MAX_PANES 64
 
@@ -12,6 +13,9 @@ typedef struct Pane {
 	Rectangle bounds;
 	char title[64];
 	bool focused;
+	int columns;
+	int rows;
+	TerminalSession terminalSession;
 } Pane;
 
 typedef struct PaneManager {
@@ -25,6 +29,7 @@ typedef struct PaneManager {
 } PaneManager;
 
 void PaneManager_Init(PaneManager *manager);
+void PaneManager_Shutdown(PaneManager *manager);
 void PaneManager_Update(PaneManager *manager, Camera2D camera, bool canvasPanActive);
 void PaneManager_Draw(const PaneManager *manager, Camera2D camera);
 int PaneManager_GetPaneCount(const PaneManager *manager);

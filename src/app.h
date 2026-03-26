@@ -10,6 +10,7 @@ typedef struct App {
 } App;
 
 void App_Init(App *app);
+void App_Shutdown(App *app);
 void App_Update(App *app);
 void App_Draw(const App *app);
 

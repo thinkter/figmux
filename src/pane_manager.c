@@ -7,10 +7,12 @@
 
 static const float kPaneMinWidth = 240.0f;
 static const float kPaneMinHeight = 160.0f;
-static const float kPaneDefaultWidth = 420.0f;
-static const float kPaneDefaultHeight = 260.0f;
+static const float kPaneDefaultWidth = 560.0f;
+static const float kPaneDefaultHeight = 360.0f;
 static const float kPaneTitlebarHeight = 34.0f;
 static const float kPanePadding = 14.0f;
+static const float kPaneCharacterWidth = 9.0f;
+static const float kPaneLineHeight = 18.0f;
 
 static const Color kPaneBodyColor = { 26, 29, 36, 235 };
 static const Color kPaneHeaderColor = { 38, 44, 56, 255 };
@@ -23,6 +25,32 @@ static const Color kPaneAccentColor = { 236, 178, 79, 255 };
 static Rectangle Pane_TitlebarBounds(Rectangle bounds)
 {
 	return (Rectangle){ bounds.x, bounds.y, bounds.width, kPaneTitlebarHeight };
+}
+
+static Rectangle Pane_ContentBounds(Rectangle bounds)
+{
+	return (Rectangle){
+		bounds.x + kPanePadding,
+		bounds.y + kPaneTitlebarHeight + kPanePadding,
+		bounds.width - (kPanePadding * 2.0f),
+		bounds.height - kPaneTitlebarHeight - (kPanePadding * 2.0f)
+	};
+}
+
+static void Pane_CalculateTerminalSize(const Pane *pane, int *columns, int *rows)
+{
+	Rectangle contentBounds = Pane_ContentBounds(pane->bounds);
+	*columns = (int)(contentBounds.width / kPaneCharacterWidth);
+	*rows = (int)(contentBounds.height / kPaneLineHeight);
+
+	if (*columns < 20)
+	{
+		*columns = 20;
+	}
+	if (*rows < 6)
+	{
+		*rows = 6;
+	}
 }
 
 static Pane *PaneManager_GetFocusedPane(PaneManager *manager)
@@ -89,6 +117,8 @@ static void PaneManager_AddPane(PaneManager *manager, Vector2 worldPosition)
 	pane->bounds.height = fmaxf(pane->bounds.height, kPaneMinHeight);
 	snprintf(pane->title, sizeof(pane->title), "Terminal %d", pane->id);
 	pane->focused = false;
+	Pane_CalculateTerminalSize(pane, &pane->columns, &pane->rows);
+	TerminalSession_Init(&pane->terminalSession, pane->columns, pane->rows);
 
 	manager->paneCount++;
 	manager->focusedPaneIndex = manager->paneCount - 1;
@@ -121,14 +151,38 @@ void PaneManager_Init(PaneManager *manager)
 	PaneManager_AddPane(manager, (Vector2){ 0.0f, 0.0f });
 }
 
+void PaneManager_Shutdown(PaneManager *manager)
+{
+	for (int i = 0; i < manager->paneCount; i++)
+	{
+		TerminalSession_Shutdown(&manager->panes[i].terminalSession);
+	}
+}
+
+static void PaneManager_HandleFocusedTerminalInput(PaneManager *manager)
+{
+	Pane *focusedPane = PaneManager_GetFocusedPane(manager);
+	if (focusedPane == NULL)
+	{
+		return;
+	}
+
+	TerminalSession_HandleInput(&focusedPane->terminalSession);
+}
+
 void PaneManager_Update(PaneManager *manager, Camera2D camera, bool canvasPanActive)
 {
 	Vector2 mouseScreen = GetMousePosition();
 	Vector2 mouseWorld = GetScreenToWorld2D(mouseScreen, camera);
 
-	if (IsKeyPressed(KEY_N))
+	if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) && IsKeyPressed(KEY_N))
 	{
 		PaneManager_AddPane(manager, mouseWorld);
+	}
+
+	for (int i = 0; i < manager->paneCount; i++)
+	{
+		TerminalSession_Update(&manager->panes[i].terminalSession);
 	}
 
 	manager->isPointerOverPane = (PaneManager_FindTopPaneAt(manager, mouseWorld) >= 0);
@@ -179,16 +233,34 @@ void PaneManager_Update(PaneManager *manager, Camera2D camera, bool canvasPanAct
 	{
 		manager->draggingPaneIndex = -1;
 	}
+
+	for (int i = 0; i < manager->paneCount; i++)
+	{
+		Pane *pane = &manager->panes[i];
+		int columns = 0;
+		int rows = 0;
+		Pane_CalculateTerminalSize(pane, &columns, &rows);
+		if (columns != pane->columns || rows != pane->rows)
+		{
+			pane->columns = columns;
+			pane->rows = rows;
+			TerminalSession_Resize(&pane->terminalSession, columns, rows, kPaneCharacterWidth, kPaneLineHeight);
+		}
+	}
+
+	if (!canvasPanActive && manager->draggingPaneIndex < 0)
+	{
+		PaneManager_HandleFocusedTerminalInput(manager);
+	}
 }
 
 void PaneManager_Draw(const PaneManager *manager, Camera2D camera)
 {
-	(void)camera;
-
 	for (int i = 0; i < manager->paneCount; i++)
 	{
 		const Pane *pane = &manager->panes[i];
 		Rectangle titlebar = Pane_TitlebarBounds(pane->bounds);
+		Rectangle contentBounds = Pane_ContentBounds(pane->bounds);
 		Color outlineColor = pane->focused ? kPaneOutlineColor : kPaneBlurredOutlineColor;
 
 		DrawRectangleRounded(pane->bounds, 0.05f, 8, kPaneBodyColor);
@@ -215,33 +287,42 @@ void PaneManager_Draw(const PaneManager *manager, Camera2D camera)
 			kPaneTextColor
 		);
 
-		int bodyFontSize = (int)(18.0f / camera.zoom);
-		if (bodyFontSize < 10)
+		int badgeFontSize = (int)(14.0f / camera.zoom);
+		if (badgeFontSize < 9)
 		{
-			bodyFontSize = 10;
+			badgeFontSize = 9;
 		}
 
 		DrawText(
-			"Terminal host placeholder",
-			(int)(pane->bounds.x + kPanePadding),
-			(int)(pane->bounds.y + kPaneTitlebarHeight + 20.0f),
-			bodyFontSize,
-			kPaneTextColor
+			TerminalSession_GetBackendName(&pane->terminalSession),
+			(int)(pane->bounds.x + pane->bounds.width - 132.0f),
+			(int)(pane->bounds.y + 10.0f),
+			badgeFontSize,
+			TerminalSession_UsingRealTerminalCore(&pane->terminalSession) ? kPaneMutedTextColor : kPaneAccentColor
 		);
-		DrawText(
-			"Drag the titlebar. Press N to spawn panes.",
-			(int)(pane->bounds.x + kPanePadding),
-			(int)(pane->bounds.y + kPaneTitlebarHeight + 48.0f),
-			bodyFontSize,
-			kPaneMutedTextColor
-		);
-		DrawText(
-			TextFormat("Pane id: %d", pane->id),
-			(int)(pane->bounds.x + kPanePadding),
-			(int)(pane->bounds.y + kPaneTitlebarHeight + 88.0f),
-			bodyFontSize,
-			kPaneMutedTextColor
-		);
+
+		TerminalDrawParams drawParams = {
+			.bounds = contentBounds,
+			.camera = camera,
+			.cellWidth = kPaneCharacterWidth,
+			.cellHeight = kPaneLineHeight,
+			.fontSize = 16,
+			.textColor = kPaneTextColor,
+			.mutedTextColor = kPaneMutedTextColor,
+			.accentColor = kPaneAccentColor
+		};
+		TerminalSession_Draw(&pane->terminalSession, &drawParams);
+
+		if (!TerminalSession_IsActive(&pane->terminalSession) && TerminalSession_HasExited(&pane->terminalSession))
+		{
+			DrawText(
+				"[shell exited]",
+				(int)contentBounds.x,
+				(int)(contentBounds.y + contentBounds.height - kPaneLineHeight),
+				16,
+				kPaneMutedTextColor
+			);
+		}
 	}
 }
 

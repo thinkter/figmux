@@ -86,6 +86,11 @@ void Canvas_Init(Canvas *canvas)
 	Canvas_UpdateOffset(canvas);
 }
 
+void Canvas_Shutdown(Canvas *canvas)
+{
+	PaneManager_Shutdown(&canvas->paneManager);
+}
+
 void Canvas_Update(Canvas *canvas)
 {
 	Canvas_UpdateOffset(canvas);
@@ -110,5 +115,5 @@ void Canvas_DrawOverlay(const Canvas *canvas)
 	DrawRectangle(16, 16, 430, 96, kOverlayColor);
 	DrawText("Middle mouse or Alt+Left: drag canvas", 32, 28, 20, RAYWHITE);
 	DrawText("Mouse wheel: zoom to cursor", 32, 54, 20, RAYWHITE);
-	DrawText(TextFormat("Press N: new pane | Pane count: %d", PaneManager_GetPaneCount(&canvas->paneManager)), 32, 80, 20, RAYWHITE);
+	DrawText(TextFormat("Press Ctrl+N: new pane | Pane count: %d", PaneManager_GetPaneCount(&canvas->paneManager)), 32, 80, 20, RAYWHITE);
 }

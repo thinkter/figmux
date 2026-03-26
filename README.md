@@ -76,20 +76,34 @@ DO NOT INSTALL ANOTHER MinGW-W64 from another source such as msys2, you don't ne
 * you are good to go
 
 # Linux Users
-* Rename the folder to your game name
-* CD into the build folder
+* Install the extra Ghostty build dependencies first: `cmake`, `zig` 0.15.x, and the system libraries required by raylib/X11.
+* CD into the `build` folder
 * run `./premake5 gmake`
 * CD back to the root
 * run `make`
+* The first generate/build will also download a pinned Ghostty source archive into `build/external/` and build `libghostty-vt` locally.
 * you are good to go
 
 # MacOS Users
-* Rename the folder to your game name
-* CD into the build folder
+* Install the extra Ghostty build dependencies first: `cmake` and `zig` 0.15.x.
+* CD into the `build` folder
 * run `./premake5.osx gmake`
 * CD back to the root
 * run `make`
+* The first generate/build will also download a pinned Ghostty source archive into `build/external/` and build `libghostty-vt` locally.
 * you are good to go
+
+# Ghostty Dependency
+This project now embeds terminals using `libghostty-vt`.
+
+The build is pinned to a specific Ghostty commit in [`build/premake5.lua`](/home/ashman/Documents/projects/figmux/build/premake5.lua) and bootstraps it automatically into `build/external/ghostty-src` plus `build/external/ghostty-build`.
+
+Requirements:
+* `cmake`
+* `zig` 0.15.x
+* normal C/C++ toolchain for your platform
+
+If you want to update the Ghostty version, change `ghostty_commit` in [`build/premake5.lua`](/home/ashman/Documents/projects/figmux/build/premake5.lua).
 
 # Output files
 The built code will be in the bin dir
@@ -158,4 +172,3 @@ Different libraries will have different dependencies on different platforms.
 
 # License
 Raylib-Quickstart by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit https://creativecommons.org/publicdomain/zero/1.0/
-

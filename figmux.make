@@ -28,7 +28,7 @@ ifeq ($(origin AR), default)
   AR = ar
 endif
 RESCOMP = windres
-INCLUDES += -Isrc -Iinclude -Ibuild/external/raylib-master/src
+INCLUDES += -Isrc -Iinclude -Ibuild/external/ghostty-src/include -Ibuild/external/raylib-master/src
 FORCE_INCLUDE +=
 ALL_CPPFLAGS += $(CPPFLAGS) -MD -MP $(DEFINES) $(INCLUDES)
 ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
@@ -47,9 +47,9 @@ OBJDIR = obj/x64/Debug/figmux
 DEFINES += -DDEBUG -DPLATFORM_DESKTOP -DGRAPHICS_API_OPENGL_33 -D_GLFW_X11
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -Wshadow -g -std=c17
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -Wshadow -g -std=c++17
-LIBS += bin/Debug/libraylib.a -lpthread -lm -ldl -lrt -lX11
+LIBS += bin/Debug/libraylib.a -lghostty-vt -lpthread -lm -ldl -lrt -lutil -lX11
 LDDEPS += bin/Debug/libraylib.a
-ALL_LDFLAGS += $(LDFLAGS) -L/usr/lib64 -m64
+ALL_LDFLAGS += $(LDFLAGS) -Lbuild/external/ghostty-src/zig-out/lib -L/usr/lib64 -m64 -Wl,-rpath,'$$ORIGIN/../../build/external/ghostty-src/zig-out/lib'
 
 else ifeq ($(config),debug_x86)
 TARGETDIR = bin/Debug
@@ -58,9 +58,9 @@ OBJDIR = obj/x86/Debug/figmux
 DEFINES += -DDEBUG -DPLATFORM_DESKTOP -DGRAPHICS_API_OPENGL_33 -D_GLFW_X11
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m32 -Wshadow -g -std=c17
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m32 -Wshadow -g -std=c++17
-LIBS += bin/Debug/libraylib.a -lpthread -lm -ldl -lrt -lX11
+LIBS += bin/Debug/libraylib.a -lghostty-vt -lpthread -lm -ldl -lrt -lutil -lX11
 LDDEPS += bin/Debug/libraylib.a
-ALL_LDFLAGS += $(LDFLAGS) -L/usr/lib32 -m32
+ALL_LDFLAGS += $(LDFLAGS) -Lbuild/external/ghostty-src/zig-out/lib -L/usr/lib32 -m32 -Wl,-rpath,'$$ORIGIN/../../build/external/ghostty-src/zig-out/lib'
 
 else ifeq ($(config),debug_arm64)
 TARGETDIR = bin/Debug
@@ -69,9 +69,9 @@ OBJDIR = obj/ARM64/Debug/figmux
 DEFINES += -DDEBUG -DPLATFORM_DESKTOP -DGRAPHICS_API_OPENGL_33 -D_GLFW_X11
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -Wshadow -g -std=c17
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -Wshadow -g -std=c++17
-LIBS += bin/Debug/libraylib.a -lpthread -lm -ldl -lrt -lX11
+LIBS += bin/Debug/libraylib.a -lghostty-vt -lpthread -lm -ldl -lrt -lutil -lX11
 LDDEPS += bin/Debug/libraylib.a
-ALL_LDFLAGS += $(LDFLAGS)
+ALL_LDFLAGS += $(LDFLAGS) -Lbuild/external/ghostty-src/zig-out/lib -Wl,-rpath,'$$ORIGIN/../../build/external/ghostty-src/zig-out/lib'
 
 else ifeq ($(config),release_x64)
 TARGETDIR = bin/Release
@@ -80,9 +80,9 @@ OBJDIR = obj/x64/Release/figmux
 DEFINES += -DNDEBUG -DPLATFORM_DESKTOP -DGRAPHICS_API_OPENGL_33 -D_GLFW_X11
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m64 -Wshadow -O2 -std=c17
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m64 -Wshadow -O2 -std=c++17
-LIBS += bin/Release/libraylib.a -lpthread -lm -ldl -lrt -lX11
+LIBS += bin/Release/libraylib.a -lghostty-vt -lpthread -lm -ldl -lrt -lutil -lX11
 LDDEPS += bin/Release/libraylib.a
-ALL_LDFLAGS += $(LDFLAGS) -L/usr/lib64 -m64 -s
+ALL_LDFLAGS += $(LDFLAGS) -Lbuild/external/ghostty-src/zig-out/lib -L/usr/lib64 -m64 -s -Wl,-rpath,'$$ORIGIN/../../build/external/ghostty-src/zig-out/lib'
 
 else ifeq ($(config),release_x86)
 TARGETDIR = bin/Release
@@ -91,9 +91,9 @@ OBJDIR = obj/x86/Release/figmux
 DEFINES += -DNDEBUG -DPLATFORM_DESKTOP -DGRAPHICS_API_OPENGL_33 -D_GLFW_X11
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -m32 -Wshadow -O2 -std=c17
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -m32 -Wshadow -O2 -std=c++17
-LIBS += bin/Release/libraylib.a -lpthread -lm -ldl -lrt -lX11
+LIBS += bin/Release/libraylib.a -lghostty-vt -lpthread -lm -ldl -lrt -lutil -lX11
 LDDEPS += bin/Release/libraylib.a
-ALL_LDFLAGS += $(LDFLAGS) -L/usr/lib32 -m32 -s
+ALL_LDFLAGS += $(LDFLAGS) -Lbuild/external/ghostty-src/zig-out/lib -L/usr/lib32 -m32 -s -Wl,-rpath,'$$ORIGIN/../../build/external/ghostty-src/zig-out/lib'
 
 else ifeq ($(config),release_arm64)
 TARGETDIR = bin/Release
@@ -102,9 +102,9 @@ OBJDIR = obj/ARM64/Release/figmux
 DEFINES += -DNDEBUG -DPLATFORM_DESKTOP -DGRAPHICS_API_OPENGL_33 -D_GLFW_X11
 ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -Wshadow -O2 -std=c17
 ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CPPFLAGS) -Wshadow -O2 -std=c++17
-LIBS += bin/Release/libraylib.a -lpthread -lm -ldl -lrt -lX11
+LIBS += bin/Release/libraylib.a -lghostty-vt -lpthread -lm -ldl -lrt -lutil -lX11
 LDDEPS += bin/Release/libraylib.a
-ALL_LDFLAGS += $(LDFLAGS) -s
+ALL_LDFLAGS += $(LDFLAGS) -Lbuild/external/ghostty-src/zig-out/lib -s -Wl,-rpath,'$$ORIGIN/../../build/external/ghostty-src/zig-out/lib'
 
 endif
 
@@ -120,14 +120,22 @@ OBJECTS :=
 
 GENERATED += $(OBJDIR)/app.o
 GENERATED += $(OBJDIR)/canvas.o
+GENERATED += $(OBJDIR)/ghostty_adapter.o
 GENERATED += $(OBJDIR)/main.o
 GENERATED += $(OBJDIR)/pane_manager.o
 GENERATED += $(OBJDIR)/performance_hud.o
+GENERATED += $(OBJDIR)/pty_backend_unix.o
+GENERATED += $(OBJDIR)/terminal_session.o
+GENERATED += $(OBJDIR)/text_terminal_adapter.o
 OBJECTS += $(OBJDIR)/app.o
 OBJECTS += $(OBJDIR)/canvas.o
+OBJECTS += $(OBJDIR)/ghostty_adapter.o
 OBJECTS += $(OBJDIR)/main.o
 OBJECTS += $(OBJDIR)/pane_manager.o
 OBJECTS += $(OBJDIR)/performance_hud.o
+OBJECTS += $(OBJDIR)/pty_backend_unix.o
+OBJECTS += $(OBJDIR)/terminal_session.o
+OBJECTS += $(OBJDIR)/text_terminal_adapter.o
 
 # Rules
 # #############################################
@@ -197,6 +205,9 @@ $(OBJDIR)/app.o: src/app.c
 $(OBJDIR)/canvas.o: src/canvas.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/ghostty_adapter.o: src/ghostty_adapter.c
+	@echo "$(notdir $<)"
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/main.o: src/main.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
@@ -204,6 +215,15 @@ $(OBJDIR)/pane_manager.o: src/pane_manager.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/performance_hud.o: src/performance_hud.c
+	@echo "$(notdir $<)"
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/pty_backend_unix.o: src/pty_backend_unix.c
+	@echo "$(notdir $<)"
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/terminal_session.o: src/terminal_session.c
+	@echo "$(notdir $<)"
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/text_terminal_adapter.o: src/text_terminal_adapter.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 
