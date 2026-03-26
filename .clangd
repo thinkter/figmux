@@ -1,2 +1,4 @@
 CompileFlags:
-  CompilationDatabase: build/
+  CompilationDatabase: ./build
+  Add:
+    - -Ibuild/external/raylib-master/src
