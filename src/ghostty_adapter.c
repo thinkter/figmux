@@ -10,18 +10,36 @@ static Font gTerminalFont = {0};
 static bool gTerminalFontLoaded = false;
 static int gTerminalFontRefCount = 0;
 
+typedef struct CodepointRange {
+	int start;
+	int end;
+} CodepointRange;
+
 static int *GhosttyAdapter_BuildFontCodepoints(int *count)
 {
-	const int asciiStart = 32;
-	const int asciiEnd = 126;
-	const int latinStart = 160;
-	const int latinEnd = 255;
-	const int puaStart = 0xE000;
-	const int puaEnd = 0xF8FF;
+	static const CodepointRange ranges[] = {
+		{ 0x0020, 0x007E }, /* Basic Latin */
+		{ 0x00A0, 0x00FF }, /* Latin-1 Supplement */
+		{ 0x0100, 0x024F }, /* Latin Extended */
+		{ 0x2000, 0x206F }, /* General Punctuation */
+		{ 0x20A0, 0x20CF }, /* Currency Symbols */
+		{ 0x2190, 0x21FF }, /* Arrows */
+		{ 0x2200, 0x22FF }, /* Math Operators */
+		{ 0x2300, 0x23FF }, /* Misc Technical */
+		{ 0x2500, 0x257F }, /* Box Drawing */
+		{ 0x2580, 0x259F }, /* Block Elements */
+		{ 0x25A0, 0x25FF }, /* Geometric Shapes */
+		{ 0x2600, 0x26FF }, /* Misc Symbols */
+		{ 0x2700, 0x27BF }, /* Dingbats */
+		{ 0x2800, 0x28FF }, /* Braille Patterns */
+		{ 0xE000, 0xF8FF }, /* BMP Private Use Area */
+	};
 
-	int total = (asciiEnd - asciiStart + 1)
-		+ (latinEnd - latinStart + 1)
-		+ (puaEnd - puaStart + 1);
+	int total = 0;
+	for (int i = 0; i < (int)(sizeof(ranges) / sizeof(ranges[0])); i++)
+	{
+		total += (ranges[i].end - ranges[i].start + 1);
+	}
 
 	int *codepoints = (int *)MemAlloc((unsigned int)(sizeof(int) * total));
 	if (codepoints == NULL)
@@ -31,9 +49,13 @@ static int *GhosttyAdapter_BuildFontCodepoints(int *count)
 	}
 
 	int index = 0;
-	for (int cp = asciiStart; cp <= asciiEnd; cp++) codepoints[index++] = cp;
-	for (int cp = latinStart; cp <= latinEnd; cp++) codepoints[index++] = cp;
-	for (int cp = puaStart; cp <= puaEnd; cp++) codepoints[index++] = cp;
+	for (int i = 0; i < (int)(sizeof(ranges) / sizeof(ranges[0])); i++)
+	{
+		for (int cp = ranges[i].start; cp <= ranges[i].end; cp++)
+		{
+			codepoints[index++] = cp;
+		}
+	}
 
 	*count = index;
 	return codepoints;
