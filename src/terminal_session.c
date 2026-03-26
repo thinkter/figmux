@@ -9,6 +9,8 @@ bool TerminalSession_Init(TerminalSession *session, int columns, int rows)
 	memset(session, 0, sizeof(*session));
 	session->columns = columns;
 	session->rows = rows;
+	session->adapter = &kTextTerminalAdapterVTable;
+	session->adapter->init(&session->adapterState, &session->surface, -1, columns, rows, 9.0f, 18.0f);
 
 	if (!PtyBackend_Spawn(&session->backend, NULL, columns, rows))
 	{
@@ -19,6 +21,7 @@ bool TerminalSession_Init(TerminalSession *session, int columns, int rows)
 	session->adapter = &kGhosttyAdapterVTable;
 	if (!session->adapter->init(&session->adapterState, &session->surface, session->backend.masterFd, columns, rows, 9.0f, 18.0f))
 	{
+		session->adapter->shutdown(&session->adapterState);
 		session->adapter = &kTextTerminalAdapterVTable;
 		session->adapter->init(&session->adapterState, &session->surface, session->backend.masterFd, columns, rows, 9.0f, 18.0f);
 	}
@@ -30,7 +33,10 @@ bool TerminalSession_Init(TerminalSession *session, int columns, int rows)
 void TerminalSession_Shutdown(TerminalSession *session)
 {
 	PtyBackend_Close(&session->backend);
-	session->adapter->shutdown(&session->adapterState);
+	if (session->adapter != NULL)
+	{
+		session->adapter->shutdown(&session->adapterState);
+	}
 	session->isActive = false;
 }
 
@@ -122,7 +128,10 @@ void TerminalSession_HandleInput(TerminalSession *session)
 
 void TerminalSession_Draw(const TerminalSession *session, const TerminalDrawParams *params)
 {
-	session->adapter->draw((void *)&session->adapterState, &session->surface, params);
+	if (session->adapter != NULL)
+	{
+		session->adapter->draw((void *)&session->adapterState, &session->surface, params);
+	}
 }
 
 const char *TerminalSession_GetLine(const TerminalSession *session, int index)
@@ -152,10 +161,20 @@ bool TerminalSession_HasExited(const TerminalSession *session)
 
 const char *TerminalSession_GetBackendName(const TerminalSession *session)
 {
+	if (session->adapter == NULL)
+	{
+		return "unavailable";
+	}
+
 	return session->adapter->backend_name();
 }
 
 bool TerminalSession_UsingRealTerminalCore(const TerminalSession *session)
 {
+	if (session->adapter == NULL)
+	{
+		return false;
+	}
+
 	return session->adapter->is_real_terminal_core();
 }

@@ -6,6 +6,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -115,7 +116,45 @@ ssize_t PtyBackend_Write(PtyBackend *backend, const char *buffer, size_t bufferS
 		return -1;
 	}
 
-	return write(backend->masterFd, buffer, bufferSize);
+	size_t totalWritten = 0;
+	while (totalWritten < bufferSize)
+	{
+		ssize_t bytesWritten = write(backend->masterFd, buffer + totalWritten, bufferSize - totalWritten);
+		if (bytesWritten > 0)
+		{
+			totalWritten += (size_t)bytesWritten;
+			continue;
+		}
+
+		if (bytesWritten < 0 && errno == EINTR)
+		{
+			continue;
+		}
+
+		if (bytesWritten < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+		{
+			struct pollfd pollFd = {
+				.fd = backend->masterFd,
+				.events = POLLOUT,
+				.revents = 0
+			};
+
+			int pollResult = poll(&pollFd, 1, -1);
+			if (pollResult > 0)
+			{
+				continue;
+			}
+
+			if (pollResult < 0 && errno == EINTR)
+			{
+				continue;
+			}
+		}
+
+		return totalWritten > 0 ? (ssize_t)totalWritten : -1;
+	}
+
+	return (ssize_t)totalWritten;
 }
 
 bool PtyBackend_Resize(PtyBackend *backend, int columns, int rows)

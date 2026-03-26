@@ -10,6 +10,8 @@ static Font gTerminalFont = {0};
 static bool gTerminalFontLoaded = false;
 static int gTerminalFontRefCount = 0;
 
+static void GhosttyAdapter_Shutdown(void *state);
+
 typedef struct CodepointRange {
 	int start;
 	int end;
@@ -259,13 +261,13 @@ static bool GhosttyAdapter_Init(void *state, TerminalSurface *surface, int ptyFd
 		.max_scrollback = 1000
 	};
 
-	if (ghostty_terminal_new(NULL, &ghostty->terminal, options) != GHOSTTY_SUCCESS) return false;
-	if (ghostty_key_encoder_new(NULL, &ghostty->keyEncoder) != GHOSTTY_SUCCESS) return false;
-	if (ghostty_key_event_new(NULL, &ghostty->keyEvent) != GHOSTTY_SUCCESS) return false;
-	if (ghostty_render_state_new(NULL, &ghostty->renderState) != GHOSTTY_SUCCESS) return false;
-	if (ghostty_render_state_row_iterator_new(NULL, &ghostty->rowIterator) != GHOSTTY_SUCCESS) return false;
-	if (ghostty_render_state_row_cells_new(NULL, &ghostty->rowCells) != GHOSTTY_SUCCESS) return false;
-	if (!GhosttyAdapter_EnsureTerminalFontLoaded()) return false;
+	if (ghostty_terminal_new(NULL, &ghostty->terminal, options) != GHOSTTY_SUCCESS) goto fail;
+	if (ghostty_key_encoder_new(NULL, &ghostty->keyEncoder) != GHOSTTY_SUCCESS) goto fail;
+	if (ghostty_key_event_new(NULL, &ghostty->keyEvent) != GHOSTTY_SUCCESS) goto fail;
+	if (ghostty_render_state_new(NULL, &ghostty->renderState) != GHOSTTY_SUCCESS) goto fail;
+	if (ghostty_render_state_row_iterator_new(NULL, &ghostty->rowIterator) != GHOSTTY_SUCCESS) goto fail;
+	if (ghostty_render_state_row_cells_new(NULL, &ghostty->rowCells) != GHOSTTY_SUCCESS) goto fail;
+	if (!GhosttyAdapter_EnsureTerminalFontLoaded()) goto fail;
 
 	ghostty->effectsContext = (GhosttyEffectsContext){
 		.ptyFd = ptyFd,
@@ -286,6 +288,10 @@ static bool GhosttyAdapter_Init(void *state, TerminalSurface *surface, int ptyFd
 
 	ghostty->available = true;
 	return true;
+
+fail:
+	GhosttyAdapter_Shutdown(ghostty);
+	return false;
 }
 
 static void GhosttyAdapter_Shutdown(void *state)

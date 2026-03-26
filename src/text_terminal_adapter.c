@@ -3,6 +3,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "pty_backend.h"
+
 static void TextTerminalAdapter_StartNewLine(TextTerminalAdapterState *state, TerminalSurface *surface)
 {
 	if (surface->lineCount < TERMINAL_MAX_LINES)
@@ -135,7 +137,58 @@ static void TextTerminalAdapter_Resize(void *state, TerminalSurface *surface, in
 static void TextTerminalAdapter_HandleInput(void *state, int ptyFd)
 {
 	(void)state;
-	(void)ptyFd;
+
+	if (ptyFd < 0)
+	{
+		return;
+	}
+
+	PtyBackend backend = {
+		.masterFd = ptyFd,
+		.childPid = -1,
+		.isOpen = true
+	};
+
+	int codepoint = GetCharPressed();
+	while (codepoint != 0)
+	{
+		int utf8Length = 0;
+		const char *utf8 = CodepointToUTF8(codepoint, &utf8Length);
+		if (utf8Length > 0)
+		{
+			PtyBackend_Write(&backend, utf8, (size_t)utf8Length);
+		}
+		codepoint = GetCharPressed();
+	}
+
+	struct {
+		int key;
+		const char *sequence;
+	} specialKeys[] = {
+		{ KEY_ENTER, "\n" },
+		{ KEY_KP_ENTER, "\n" },
+		{ KEY_BACKSPACE, "\x7f" },
+		{ KEY_TAB, "\t" },
+		{ KEY_ESCAPE, "\x1b" },
+		{ KEY_UP, "\x1b[A" },
+		{ KEY_DOWN, "\x1b[B" },
+		{ KEY_RIGHT, "\x1b[C" },
+		{ KEY_LEFT, "\x1b[D" },
+		{ KEY_HOME, "\x1b[H" },
+		{ KEY_END, "\x1b[F" },
+		{ KEY_DELETE, "\x1b[3~" },
+		{ KEY_INSERT, "\x1b[2~" },
+		{ KEY_PAGE_UP, "\x1b[5~" },
+		{ KEY_PAGE_DOWN, "\x1b[6~" },
+	};
+
+	for (int i = 0; i < (int)(sizeof(specialKeys) / sizeof(specialKeys[0])); i++)
+	{
+		if (IsKeyPressed(specialKeys[i].key) || IsKeyPressedRepeat(specialKeys[i].key))
+		{
+			PtyBackend_Write(&backend, specialKeys[i].sequence, strlen(specialKeys[i].sequence));
+		}
+	}
 }
 
 static void TextTerminalAdapter_Draw(void *state, const TerminalSurface *surface, const TerminalDrawParams *params)
