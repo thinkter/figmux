@@ -121,9 +121,11 @@ OBJECTS :=
 GENERATED += $(OBJDIR)/app.o
 GENERATED += $(OBJDIR)/canvas.o
 GENERATED += $(OBJDIR)/main.o
+GENERATED += $(OBJDIR)/performance_hud.o
 OBJECTS += $(OBJDIR)/app.o
 OBJECTS += $(OBJDIR)/canvas.o
 OBJECTS += $(OBJDIR)/main.o
+OBJECTS += $(OBJDIR)/performance_hud.o
 
 # Rules
 # #############################################
@@ -194,6 +196,9 @@ $(OBJDIR)/canvas.o: src/canvas.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/main.o: src/main.c
+	@echo "$(notdir $<)"
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/performance_hud.o: src/performance_hud.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 

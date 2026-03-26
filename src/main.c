@@ -7,6 +7,7 @@ int main(void)
 {
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE);
 	InitWindow(1280, 800, "Hello Raylib");
+	// SetTargetFPS(144);
 
 	SearchAndSetResourceDir("resources");
 
