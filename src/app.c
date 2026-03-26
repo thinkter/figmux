@@ -1,0 +1,17 @@
+#include "app.h"
+
+void App_Init(App *app)
+{
+	Canvas_Init(&app->canvas);
+}
+
+void App_Update(App *app)
+{
+	Canvas_Update(&app->canvas);
+}
+
+void App_Draw(const App *app)
+{
+	Canvas_Draw(&app->canvas);
+	Canvas_DrawOverlay(&app->canvas);
+}
