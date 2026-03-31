@@ -100,6 +100,11 @@ void Canvas_Update(Canvas *canvas)
 	PaneManager_Update(&canvas->paneManager, canvas->camera, canvas->isPanning);
 }
 
+void Canvas_PrepareDraw(Canvas *canvas)
+{
+	PaneManager_PrepareDraw(&canvas->paneManager, canvas->camera);
+}
+
 void Canvas_Draw(const Canvas *canvas)
 {
 	ClearBackground(kBackgroundColor);

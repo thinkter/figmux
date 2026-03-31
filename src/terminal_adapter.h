@@ -31,6 +31,7 @@ typedef struct TerminalAdapterVTable {
 	void (*feed_output)(void *state, TerminalSurface *surface, const char *buffer, size_t length);
 	void (*resize)(void *state, TerminalSurface *surface, int columns, int rows, float cellWidth, float cellHeight);
 	void (*handle_input)(void *state, int ptyFd);
+	void (*prepare_draw)(void *state, const TerminalSurface *surface, const TerminalDrawParams *params);
 	void (*draw)(void *state, const TerminalSurface *surface, const TerminalDrawParams *params);
 	const char *(*backend_name)(void);
 	bool (*is_real_terminal_core)(void);

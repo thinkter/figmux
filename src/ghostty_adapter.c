@@ -9,8 +9,200 @@
 static Font gTerminalFont = {0};
 static bool gTerminalFontLoaded = false;
 static int gTerminalFontRefCount = 0;
+static const int kTerminalFontBakeSize = 20;
 
 static void GhosttyAdapter_Shutdown(void *state);
+
+static void GhosttyAdapter_ReleaseRenderTexture(GhosttyAdapterState *ghostty)
+{
+	if (!ghostty->renderTextureReady)
+	{
+		return;
+	}
+
+	UnloadRenderTexture(ghostty->renderTexture);
+	ghostty->renderTexture = (RenderTexture2D){0};
+	ghostty->renderTextureReady = false;
+	ghostty->renderWidth = 0;
+	ghostty->renderHeight = 0;
+}
+
+static bool GhosttyAdapter_EnsureRenderTexture(GhosttyAdapterState *ghostty)
+{
+	int targetWidth = (int)(ghostty->effectsContext.columns * ghostty->effectsContext.cellWidth);
+	int targetHeight = (int)(ghostty->effectsContext.rows * ghostty->effectsContext.cellHeight);
+	if (targetWidth < 1) targetWidth = 1;
+	if (targetHeight < 1) targetHeight = 1;
+
+	if (ghostty->renderTextureReady &&
+		ghostty->renderWidth == targetWidth &&
+		ghostty->renderHeight == targetHeight)
+	{
+		return true;
+	}
+
+	GhosttyAdapter_ReleaseRenderTexture(ghostty);
+	ghostty->renderTexture = LoadRenderTexture(targetWidth, targetHeight);
+	if (ghostty->renderTexture.texture.id == 0)
+	{
+		return false;
+	}
+
+	SetTextureFilter(ghostty->renderTexture.texture, TEXTURE_FILTER_BILINEAR);
+	ghostty->renderTextureReady = true;
+	ghostty->renderWidth = targetWidth;
+	ghostty->renderHeight = targetHeight;
+	return true;
+}
+
+static void GhosttyAdapter_DrawCellGlyph(Font font, float x, float y, int fontSize, GhosttyColorRgb fgRgb, GhosttyStyle style, const uint32_t *codepoints, uint32_t graphemeLength)
+{
+	char text[64];
+	int textLength = 0;
+	uint32_t maxGraphemes = graphemeLength < 16 ? graphemeLength : 16;
+	for (uint32_t i = 0; i < maxGraphemes && textLength < 60; i++)
+	{
+		int utf8Size = 0;
+		const char *utf8 = CodepointToUTF8((int)codepoints[i], &utf8Size);
+		memcpy(&text[textLength], utf8, (size_t)utf8Size);
+		textLength += utf8Size;
+	}
+	text[textLength] = '\0';
+
+	Color fg = { fgRgb.r, fgRgb.g, fgRgb.b, 255 };
+	int italicOffset = style.italic ? (fontSize / 6) : 0;
+	DrawTextEx(font, text, (Vector2){ x + italicOffset, y }, (float)fontSize, 0.0f, fg);
+	if (style.bold)
+	{
+		DrawTextEx(font, text, (Vector2){ x + italicOffset + 1.0f, y }, (float)fontSize, 0.0f, fg);
+	}
+}
+
+static void GhosttyAdapter_RedrawTexture(GhosttyAdapterState *ghostty, const TerminalDrawParams *params, const GhosttyRenderStateColors *colors)
+{
+	GhosttyRenderStateDirty dirty = GHOSTTY_RENDER_STATE_DIRTY_FALSE;
+	if (ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_DIRTY, &dirty) != GHOSTTY_SUCCESS)
+	{
+		return;
+	}
+
+	if (dirty == GHOSTTY_RENDER_STATE_DIRTY_FALSE)
+	{
+		return;
+	}
+
+	if (ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_ROW_ITERATOR, &ghostty->rowIterator) != GHOSTTY_SUCCESS)
+	{
+		return;
+	}
+
+	BeginTextureMode(ghostty->renderTexture);
+
+	if (dirty == GHOSTTY_RENDER_STATE_DIRTY_FULL)
+	{
+		ClearBackground((Color){ colors->background.r, colors->background.g, colors->background.b, 255 });
+	}
+
+	float y = 0.0f;
+	Font font = gTerminalFontLoaded ? gTerminalFont : GetFontDefault();
+	while (ghostty_render_state_row_iterator_next(ghostty->rowIterator))
+	{
+		bool rowDirty = (dirty == GHOSTTY_RENDER_STATE_DIRTY_FULL);
+		if (!rowDirty &&
+			ghostty_render_state_row_get(ghostty->rowIterator, GHOSTTY_RENDER_STATE_ROW_DATA_DIRTY, &rowDirty) != GHOSTTY_SUCCESS)
+		{
+			y += params->cellHeight;
+			continue;
+		}
+
+		if (!rowDirty)
+		{
+			y += params->cellHeight;
+			continue;
+		}
+
+		DrawRectangle(
+			0,
+			(int)y,
+			ghostty->renderWidth,
+			(int)params->cellHeight + 1,
+			(Color){ colors->background.r, colors->background.g, colors->background.b, 255 }
+		);
+
+		if (ghostty_render_state_row_get(ghostty->rowIterator, GHOSTTY_RENDER_STATE_ROW_DATA_CELLS, &ghostty->rowCells) != GHOSTTY_SUCCESS)
+		{
+			y += params->cellHeight;
+			continue;
+		}
+
+		float x = 0.0f;
+		while (ghostty_render_state_row_cells_next(ghostty->rowCells))
+		{
+			uint32_t graphemeLength = 0;
+			ghostty_render_state_row_cells_get(ghostty->rowCells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_GRAPHEMES_LEN, &graphemeLength);
+
+			GhosttyColorRgb bgRgb = colors->background;
+			bool hasBg = ghostty_render_state_row_cells_get(ghostty->rowCells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_BG_COLOR, &bgRgb) == GHOSTTY_SUCCESS;
+			if (hasBg)
+			{
+				DrawRectangle((int)x, (int)y, (int)params->cellWidth + 1, (int)params->cellHeight + 1, (Color){ bgRgb.r, bgRgb.g, bgRgb.b, 255 });
+			}
+
+			if (graphemeLength > 0)
+			{
+				uint32_t codepoints[16] = {0};
+				ghostty_render_state_row_cells_get(ghostty->rowCells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_GRAPHEMES_BUF, codepoints);
+
+				GhosttyColorRgb fgRgb = colors->foreground;
+				ghostty_render_state_row_cells_get(ghostty->rowCells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_FG_COLOR, &fgRgb);
+				GhosttyStyle style = GHOSTTY_INIT_SIZED(GhosttyStyle);
+				ghostty_render_state_row_cells_get(ghostty->rowCells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_STYLE, &style);
+
+				if (style.inverse)
+				{
+					GhosttyColorRgb swap = fgRgb;
+					fgRgb = bgRgb;
+					bgRgb = swap;
+					DrawRectangle((int)x, (int)y, (int)params->cellWidth + 1, (int)params->cellHeight + 1, (Color){ bgRgb.r, bgRgb.g, bgRgb.b, 255 });
+				}
+
+				GhosttyAdapter_DrawCellGlyph(font, x, y, params->fontSize, fgRgb, style, codepoints, graphemeLength);
+			}
+
+			x += params->cellWidth;
+		}
+
+		bool clean = false;
+		ghostty_render_state_row_set(ghostty->rowIterator, GHOSTTY_RENDER_STATE_ROW_OPTION_DIRTY, &clean);
+		y += params->cellHeight;
+	}
+
+	bool cursorVisible = false;
+	bool cursorInViewport = false;
+	ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_CURSOR_VISIBLE, &cursorVisible);
+	ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_HAS_VALUE, &cursorInViewport);
+	if (cursorVisible && cursorInViewport)
+	{
+		uint16_t cursorX = 0;
+		uint16_t cursorY = 0;
+		ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_X, &cursorX);
+		ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_Y, &cursorY);
+
+		GhosttyColorRgb cursorRgb = colors->cursor_has_value ? colors->cursor : colors->foreground;
+		DrawRectangle(
+			(int)(cursorX * params->cellWidth),
+			(int)(cursorY * params->cellHeight),
+			(int)params->cellWidth,
+			(int)params->cellHeight,
+			(Color){ cursorRgb.r, cursorRgb.g, cursorRgb.b, 120 }
+		);
+	}
+
+	EndTextureMode();
+
+	GhosttyRenderStateDirty cleanState = GHOSTTY_RENDER_STATE_DIRTY_FALSE;
+	ghostty_render_state_set(ghostty->renderState, GHOSTTY_RENDER_STATE_OPTION_DIRTY, &cleanState);
+}
 
 typedef struct CodepointRange {
 	int start;
@@ -22,19 +214,12 @@ static int *GhosttyAdapter_BuildFontCodepoints(int *count)
 	static const CodepointRange ranges[] = {
 		{ 0x0020, 0x007E }, /* Basic Latin */
 		{ 0x00A0, 0x00FF }, /* Latin-1 Supplement */
-		{ 0x0100, 0x024F }, /* Latin Extended */
 		{ 0x2000, 0x206F }, /* General Punctuation */
-		{ 0x20A0, 0x20CF }, /* Currency Symbols */
 		{ 0x2190, 0x21FF }, /* Arrows */
-		{ 0x2200, 0x22FF }, /* Math Operators */
-		{ 0x2300, 0x23FF }, /* Misc Technical */
 		{ 0x2500, 0x257F }, /* Box Drawing */
 		{ 0x2580, 0x259F }, /* Block Elements */
-		{ 0x25A0, 0x25FF }, /* Geometric Shapes */
-		{ 0x2600, 0x26FF }, /* Misc Symbols */
-		{ 0x2700, 0x27BF }, /* Dingbats */
 		{ 0x2800, 0x28FF }, /* Braille Patterns */
-		{ 0xE000, 0xF8FF }, /* BMP Private Use Area */
+		{ 0xE0A0, 0xE0D7 }, /* Powerline symbols */
 	};
 
 	int total = 0;
@@ -78,7 +263,7 @@ static bool GhosttyAdapter_EnsureTerminalFontLoaded(void)
 		return false;
 	}
 
-	gTerminalFont = LoadFontEx("JetBrainsMonoNerdFontMono-Regular.ttf", 40, codepoints, codepointCount);
+	gTerminalFont = LoadFontEx("JetBrainsMonoNerdFontMono-Regular.ttf", kTerminalFontBakeSize, codepoints, codepointCount);
 	MemFree(codepoints);
 
 	if (gTerminalFont.texture.id == 0)
@@ -285,6 +470,7 @@ static bool GhosttyAdapter_Init(void *state, TerminalSurface *surface, int ptyFd
 	ghostty_terminal_set(ghostty->terminal, GHOSTTY_TERMINAL_OPT_TITLE_CHANGED, (const void *)GhosttyAdapter_TitleChanged);
 	ghostty_terminal_set(ghostty->terminal, GHOSTTY_TERMINAL_OPT_COLOR_SCHEME, (const void *)GhosttyAdapter_ColorScheme);
 	ghostty_render_state_update(ghostty->renderState, ghostty->terminal);
+	if (!GhosttyAdapter_EnsureRenderTexture(ghostty)) goto fail;
 
 	ghostty->available = true;
 	return true;
@@ -303,6 +489,7 @@ static void GhosttyAdapter_Shutdown(void *state)
 	if (ghostty->keyEvent) ghostty_key_event_free(ghostty->keyEvent);
 	if (ghostty->keyEncoder) ghostty_key_encoder_free(ghostty->keyEncoder);
 	if (ghostty->terminal) ghostty_terminal_free(ghostty->terminal);
+	GhosttyAdapter_ReleaseRenderTexture(ghostty);
 	GhosttyAdapter_ReleaseTerminalFont();
 	memset(ghostty, 0, sizeof(*ghostty));
 }
@@ -325,6 +512,7 @@ static void GhosttyAdapter_Resize(void *state, TerminalSurface *surface, int col
 	ghostty->effectsContext.cellHeight = cellHeight;
 	ghostty_terminal_resize(ghostty->terminal, (uint16_t)columns, (uint16_t)rows, (uint32_t)cellWidth, (uint32_t)cellHeight);
 	ghostty_render_state_update(ghostty->renderState, ghostty->terminal);
+	GhosttyAdapter_EnsureRenderTexture(ghostty);
 }
 
 static void GhosttyAdapter_HandleInput(void *state, int ptyFd)
@@ -408,10 +596,15 @@ static void GhosttyAdapter_HandleInput(void *state, int ptyFd)
 	}
 }
 
-static void GhosttyAdapter_Draw(void *state, const TerminalSurface *surface, const TerminalDrawParams *params)
+static void GhosttyAdapter_PrepareDraw(void *state, const TerminalSurface *surface, const TerminalDrawParams *params)
 {
 	GhosttyAdapterState *ghostty = (GhosttyAdapterState *)state;
 	(void)surface;
+
+	if (!GhosttyAdapter_EnsureRenderTexture(ghostty))
+	{
+		return;
+	}
 
 	GhosttyRenderStateColors colors = GHOSTTY_INIT_SIZED(GhosttyRenderStateColors);
 	if (ghostty_render_state_colors_get(ghostty->renderState, &colors) != GHOSTTY_SUCCESS)
@@ -419,10 +612,13 @@ static void GhosttyAdapter_Draw(void *state, const TerminalSurface *surface, con
 		return;
 	}
 
-	if (ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_ROW_ITERATOR, &ghostty->rowIterator) != GHOSTTY_SUCCESS)
-	{
-		return;
-	}
+	GhosttyAdapter_RedrawTexture(ghostty, params, &colors);
+}
+
+static void GhosttyAdapter_Draw(void *state, const TerminalSurface *surface, const TerminalDrawParams *params)
+{
+	GhosttyAdapterState *ghostty = (GhosttyAdapterState *)state;
+	(void)surface;
 
 	Vector2 contentTopLeftScreen = GetWorldToScreen2D((Vector2){ params->bounds.x, params->bounds.y }, params->camera);
 	Vector2 contentBottomRightScreen = GetWorldToScreen2D((Vector2){ params->bounds.x + params->bounds.width, params->bounds.y + params->bounds.height }, params->camera);
@@ -434,100 +630,14 @@ static void GhosttyAdapter_Draw(void *state, const TerminalSurface *surface, con
 	if (scissorHeight < 1) scissorHeight = 1;
 
 	BeginScissorMode(scissorX, scissorY, scissorWidth, scissorHeight);
-
-	float y = params->bounds.y;
-	Font font = gTerminalFontLoaded ? gTerminalFont : GetFontDefault();
-	while (ghostty_render_state_row_iterator_next(ghostty->rowIterator))
-	{
-		if (ghostty_render_state_row_get(ghostty->rowIterator, GHOSTTY_RENDER_STATE_ROW_DATA_CELLS, &ghostty->rowCells) != GHOSTTY_SUCCESS)
-		{
-			y += params->cellHeight;
-			continue;
-		}
-
-		float x = params->bounds.x;
-		while (ghostty_render_state_row_cells_next(ghostty->rowCells))
-		{
-			uint32_t graphemeLength = 0;
-			ghostty_render_state_row_cells_get(ghostty->rowCells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_GRAPHEMES_LEN, &graphemeLength);
-
-			GhosttyColorRgb bgRgb = colors.background;
-			bool hasBg = ghostty_render_state_row_cells_get(ghostty->rowCells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_BG_COLOR, &bgRgb) == GHOSTTY_SUCCESS;
-			if (hasBg)
-			{
-				DrawRectangle((int)x, (int)y, (int)params->cellWidth + 1, (int)params->cellHeight + 1, (Color){ bgRgb.r, bgRgb.g, bgRgb.b, 255 });
-			}
-
-			if (graphemeLength > 0)
-			{
-				uint32_t codepoints[16] = {0};
-				ghostty_render_state_row_cells_get(ghostty->rowCells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_GRAPHEMES_BUF, codepoints);
-
-				char text[64];
-				int textLength = 0;
-				uint32_t maxGraphemes = graphemeLength < 16 ? graphemeLength : 16;
-				for (uint32_t i = 0; i < maxGraphemes && textLength < 60; i++)
-				{
-					int utf8Size = 0;
-					const char *utf8 = CodepointToUTF8((int)codepoints[i], &utf8Size);
-					memcpy(&text[textLength], utf8, (size_t)utf8Size);
-					textLength += utf8Size;
-				}
-				text[textLength] = '\0';
-
-				GhosttyColorRgb fgRgb = colors.foreground;
-				ghostty_render_state_row_cells_get(ghostty->rowCells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_FG_COLOR, &fgRgb);
-				GhosttyStyle style = GHOSTTY_INIT_SIZED(GhosttyStyle);
-				ghostty_render_state_row_cells_get(ghostty->rowCells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_STYLE, &style);
-
-				if (style.inverse)
-				{
-					GhosttyColorRgb swap = fgRgb;
-					fgRgb = bgRgb;
-					bgRgb = swap;
-					DrawRectangle((int)x, (int)y, (int)params->cellWidth + 1, (int)params->cellHeight + 1, (Color){ bgRgb.r, bgRgb.g, bgRgb.b, 255 });
-				}
-
-				Color fg = { fgRgb.r, fgRgb.g, fgRgb.b, 255 };
-				int italicOffset = style.italic ? (params->fontSize / 6) : 0;
-				DrawTextEx(font, text, (Vector2){ x + italicOffset, y }, (float)params->fontSize, 0.0f, fg);
-				if (style.bold)
-				{
-					DrawTextEx(font, text, (Vector2){ x + italicOffset + 1.0f, y }, (float)params->fontSize, 0.0f, fg);
-				}
-			}
-
-			x += params->cellWidth;
-		}
-
-		bool clean = false;
-		ghostty_render_state_row_set(ghostty->rowIterator, GHOSTTY_RENDER_STATE_ROW_OPTION_DIRTY, &clean);
-		y += params->cellHeight;
-	}
-
-	bool cursorVisible = false;
-	bool cursorInViewport = false;
-	ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_CURSOR_VISIBLE, &cursorVisible);
-	ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_HAS_VALUE, &cursorInViewport);
-	if (cursorVisible && cursorInViewport)
-	{
-		uint16_t cursorX = 0;
-		uint16_t cursorY = 0;
-		ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_X, &cursorX);
-		ghostty_render_state_get(ghostty->renderState, GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_Y, &cursorY);
-
-		GhosttyColorRgb cursorRgb = colors.cursor_has_value ? colors.cursor : colors.foreground;
-		DrawRectangle(
-			(int)(params->bounds.x + (cursorX * params->cellWidth)),
-			(int)(params->bounds.y + (cursorY * params->cellHeight)),
-			(int)params->cellWidth,
-			(int)params->cellHeight,
-			(Color){ cursorRgb.r, cursorRgb.g, cursorRgb.b, 120 }
-		);
-	}
-
-	GhosttyRenderStateDirty cleanState = GHOSTTY_RENDER_STATE_DIRTY_FALSE;
-	ghostty_render_state_set(ghostty->renderState, GHOSTTY_RENDER_STATE_OPTION_DIRTY, &cleanState);
+	DrawTexturePro(
+		ghostty->renderTexture.texture,
+		(Rectangle){ 0.0f, 0.0f, (float)ghostty->renderWidth, (float)-ghostty->renderHeight },
+		params->bounds,
+		(Vector2){ 0.0f, 0.0f },
+		0.0f,
+		WHITE
+	);
 	EndScissorMode();
 }
 
@@ -547,6 +657,7 @@ const TerminalAdapterVTable kGhosttyAdapterVTable = {
 	.feed_output = GhosttyAdapter_FeedOutput,
 	.resize = GhosttyAdapter_Resize,
 	.handle_input = GhosttyAdapter_HandleInput,
+	.prepare_draw = GhosttyAdapter_PrepareDraw,
 	.draw = GhosttyAdapter_Draw,
 	.backend_name = GhosttyAdapter_BackendName,
 	.is_real_terminal_core = GhosttyAdapter_IsRealTerminalCore

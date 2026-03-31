@@ -31,6 +31,7 @@ typedef struct PaneManager {
 void PaneManager_Init(PaneManager *manager);
 void PaneManager_Shutdown(PaneManager *manager);
 void PaneManager_Update(PaneManager *manager, Camera2D camera, bool canvasPanActive);
+void PaneManager_PrepareDraw(PaneManager *manager, Camera2D camera);
 void PaneManager_Draw(const PaneManager *manager, Camera2D camera);
 int PaneManager_GetPaneCount(const PaneManager *manager);
 bool PaneManager_IsPointerOverPane(const PaneManager *manager);

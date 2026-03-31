@@ -24,6 +24,10 @@ typedef struct GhosttyAdapterState {
 	GhosttyRenderStateRowIterator rowIterator;
 	GhosttyRenderStateRowCells rowCells;
 	GhosttyEffectsContext effectsContext;
+	RenderTexture2D renderTexture;
+	bool renderTextureReady;
+	int renderWidth;
+	int renderHeight;
 } GhosttyAdapterState;
 
 extern const TerminalAdapterVTable kGhosttyAdapterVTable;

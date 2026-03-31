@@ -31,6 +31,7 @@ void TerminalSession_Resize(TerminalSession *session, int columns, int rows, flo
 void TerminalSession_SendText(TerminalSession *session, const char *text);
 void TerminalSession_SendKey(TerminalSession *session, int key);
 void TerminalSession_HandleInput(TerminalSession *session);
+void TerminalSession_PrepareDraw(TerminalSession *session, const TerminalDrawParams *params);
 void TerminalSession_Draw(const TerminalSession *session, const TerminalDrawParams *params);
 const char *TerminalSession_GetLine(const TerminalSession *session, int index);
 int TerminalSession_GetLineCount(const TerminalSession *session);

@@ -9,7 +9,10 @@ typedef struct PerformanceHud {
 	float averageFrameTimeMs;
 	float peakFrameTimeMs;
 	float elapsedSecondsSincePeak;
+	float elapsedSecondsSinceMemorySample;
 	size_t residentMemoryBytes;
+	size_t proportionalMemoryBytes;
+	size_t privateDirtyMemoryBytes;
 } PerformanceHud;
 
 void PerformanceHud_Init(PerformanceHud *hud);

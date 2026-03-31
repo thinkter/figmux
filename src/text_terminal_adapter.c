@@ -191,6 +191,13 @@ static void TextTerminalAdapter_HandleInput(void *state, int ptyFd)
 	}
 }
 
+static void TextTerminalAdapter_PrepareDraw(void *state, const TerminalSurface *surface, const TerminalDrawParams *params)
+{
+	(void)state;
+	(void)surface;
+	(void)params;
+}
+
 static void TextTerminalAdapter_Draw(void *state, const TerminalSurface *surface, const TerminalDrawParams *params)
 {
 	(void)state;
@@ -255,6 +262,7 @@ const TerminalAdapterVTable kTextTerminalAdapterVTable = {
 	.feed_output = TextTerminalAdapter_FeedOutput,
 	.resize = TextTerminalAdapter_Resize,
 	.handle_input = TextTerminalAdapter_HandleInput,
+	.prepare_draw = TextTerminalAdapter_PrepareDraw,
 	.draw = TextTerminalAdapter_Draw,
 	.backend_name = TextTerminalAdapter_BackendName,
 	.is_real_terminal_core = TextTerminalAdapter_IsRealTerminalCore

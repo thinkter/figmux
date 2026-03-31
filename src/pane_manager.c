@@ -254,6 +254,26 @@ void PaneManager_Update(PaneManager *manager, Camera2D camera, bool canvasPanAct
 	}
 }
 
+void PaneManager_PrepareDraw(PaneManager *manager, Camera2D camera)
+{
+	for (int i = 0; i < manager->paneCount; i++)
+	{
+		Pane *pane = &manager->panes[i];
+		Rectangle contentBounds = Pane_ContentBounds(pane->bounds);
+		TerminalDrawParams drawParams = {
+			.bounds = contentBounds,
+			.camera = camera,
+			.cellWidth = kPaneCharacterWidth,
+			.cellHeight = kPaneLineHeight,
+			.fontSize = 16,
+			.textColor = kPaneTextColor,
+			.mutedTextColor = kPaneMutedTextColor,
+			.accentColor = kPaneAccentColor
+		};
+		TerminalSession_PrepareDraw(&pane->terminalSession, &drawParams);
+	}
+}
+
 void PaneManager_Draw(const PaneManager *manager, Camera2D camera)
 {
 	for (int i = 0; i < manager->paneCount; i++)

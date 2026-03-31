@@ -16,6 +16,7 @@ typedef struct Canvas {
 void Canvas_Init(Canvas *canvas);
 void Canvas_Shutdown(Canvas *canvas);
 void Canvas_Update(Canvas *canvas);
+void Canvas_PrepareDraw(Canvas *canvas);
 void Canvas_Draw(const Canvas *canvas);
 void Canvas_DrawOverlay(const Canvas *canvas);
 

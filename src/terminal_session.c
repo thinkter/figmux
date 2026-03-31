@@ -126,6 +126,14 @@ void TerminalSession_HandleInput(TerminalSession *session)
 	session->adapter->handle_input(&session->adapterState, session->backend.masterFd);
 }
 
+void TerminalSession_PrepareDraw(TerminalSession *session, const TerminalDrawParams *params)
+{
+	if (session->adapter != NULL && session->adapter->prepare_draw != NULL)
+	{
+		session->adapter->prepare_draw(&session->adapterState, &session->surface, params);
+	}
+}
+
 void TerminalSession_Draw(const TerminalSession *session, const TerminalDrawParams *params)
 {
 	if (session->adapter != NULL)
